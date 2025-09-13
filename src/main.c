@@ -1,4 +1,4 @@
-// Wondercell
+// Wondercellq
 // Joe Kennedy - 2023
 
 #include <wonderful.h>
@@ -12,14 +12,14 @@
 
 #include "card.h"
 #include "draw.h"
+#include "iram.h"
 #include "main.h"
 #include "vgm.h"
 #include "entertainer_cvgm_bin.h"
 #include "title_screen_cvgm_bin.h"
 #include "you_win_cvgm_bin.h"
 
-#define IRAM_IMPLEMENTATION
-#include "iram.h"
+WSE_RESERVE_TILES(256, 256);
 
 extern void vblank_int_handler(void);
 
@@ -103,7 +103,7 @@ void new_game()
 	initialise_deck();
 	shuffle_deck();
 
-	outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(screen_1) | WS_SCR_BASE_ADDR2(screen_2));
+	outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(&screen_1) | WS_SCR_BASE_ADDR2(&screen_2));
 
 	// default cursor to first cascade
 	cursor_area = AREA_CASCADES;
@@ -111,8 +111,8 @@ void new_game()
 	reset_drawn_cursor();
 
 	// setup cursor sprites
-	sprites[0].attr = (CURSOR_TILES) | WS_SPRITE_ATTR_PRIORITY | WS_SPRITE_ATTR_PALETTE(CARDS_PALETTE);
-	sprites[1].attr = (CURSOR_TILES + 1) | WS_SPRITE_ATTR_PRIORITY | WS_SPRITE_ATTR_PALETTE(CARDS_PALETTE);
+	sprites.entry[0].attr = (CURSOR_TILES) | WS_SPRITE_ATTR_PRIORITY | WS_SPRITE_ATTR_PALETTE(CARDS_PALETTE);
+	sprites.entry[1].attr = (CURSOR_TILES + 1) | WS_SPRITE_ATTR_PRIORITY | WS_SPRITE_ATTR_PALETTE(CARDS_PALETTE);
 
 	show_game_screen();
 
@@ -182,14 +182,14 @@ void main()
 	// setup music driver
 	music_ticks = VGMSWAN_PLAYBACK_FINISHED;
 #ifndef __WONDERFUL_WWITCH__
-	outportb(WS_SOUND_WAVE_BASE_PORT, WS_SOUND_WAVE_BASE_ADDR(&wave_ram));
+	outportb(WS_SOUND_WAVE_BASE_PORT, WS_SOUND_WAVE_BASE_ADDR(&wse_wavetable1));
 #endif
 
 	// initial game state
 	game_state = GAME_TITLE;
 
 	// show title screen
-	outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(screen_1_page_2) | WS_SCR_BASE_ADDR2(screen_2));
+	outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(&screen_1_page_2) | WS_SCR_BASE_ADDR2(&screen_2));
 	show_title_screen();
 
 	// initial background music
@@ -361,7 +361,7 @@ void main()
 				if (menu_cursor == 2)
 				{
 					// change screen_2 base address back to the card screen map
-					outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(screen_1) | WS_SCR_BASE_ADDR2(screen_2));
+					outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(&screen_1) | WS_SCR_BASE_ADDR2(&screen_2));
 
 					game_state = GAME_INGAME;
 				}
@@ -391,17 +391,17 @@ void main()
 				outportb(WS_SCR1_SCRL_Y_PORT, 0);
 				
 				// change screen_2 base address to the card screen map
-				outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(screen_1) | WS_SCR_BASE_ADDR2(screen_2));
+				outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(&screen_1) | WS_SCR_BASE_ADDR2(&screen_2));
 
 				game_state = GAME_INGAME;
 			}
 
 			// cursor position
-			sprites[0].x = 152;
-			sprites[0].y = 50 + (menu_cursor << 4);
+			sprites.entry[0].x = 152;
+			sprites.entry[0].y = 50 + (menu_cursor << 4);
 
-			sprites[1].x = sprites[0].x;
-			sprites[1].y = sprites[0].y + 8;
+			sprites.entry[1].x = sprites.entry[0].x;
+			sprites.entry[1].y = sprites.entry[0].y + 8;
 		}
 
 		// ingame
@@ -536,7 +536,7 @@ void main()
 			{
 				// change screen_2 base address to the menu screen map
 				outportb(WS_SPR_COUNT_PORT, 2);
-				outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(screen_1_page_2) | WS_SCR_BASE_ADDR2(screen_2_page_2));
+				outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(&screen_1_page_2) | WS_SCR_BASE_ADDR2(&screen_2_page_2));
 				
 				// reset screen 1 scroll
 				outportb(WS_SCR1_SCRL_X_PORT, 0);

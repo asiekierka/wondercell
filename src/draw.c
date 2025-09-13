@@ -54,7 +54,7 @@ void init_video()
 	}
 
 	// set base addresses for screens 1 and 2
-	outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(screen_1) | WS_SCR_BASE_ADDR2(screen_2));
+	outportb(WS_SCR_BASE_PORT, WS_SCR_BASE_ADDR1(&screen_1) | WS_SCR_BASE_ADDR2(&screen_2));
 
 	// reset scroll registers to 0
 	outportb(WS_SCR1_SCRL_X_PORT, 0);
@@ -63,8 +63,8 @@ void init_video()
 	outportb(WS_SCR2_SCRL_Y_PORT, 0);
 
 	// set sprite base address
-	outportb(WS_SPR_BASE_PORT, WS_SPR_BASE_ADDR(sprites));
-	
+	outportb(WS_SPR_BASE_PORT, WS_SPR_BASE_ADDR(&sprites));
+
 	// don't render any sprites for now
 	outportb(WS_SPR_COUNT_PORT, 0);
 }
@@ -155,29 +155,29 @@ void copy_palettes()
 
 void clear_card_layer()
 {
-    ws_screen_fill_tiles(screen_2, WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE), 0, 0, WS_SCREEN_WIDTH_TILES, WS_SCREEN_HEIGHT_TILES);
+    ws_screen_fill_tiles(&screen_2, WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE), 0, 0, WS_SCREEN_WIDTH_TILES, WS_SCREEN_HEIGHT_TILES);
 }
 
 // draw the checkerboard background onto screen 1 page 2
 void draw_checkerboard()
 {
-    uint16_t index;
-
-	for (index = 0; index < WS_SCREEN_WIDTH_TILES * WS_SCREEN_HEIGHT_TILES; index++)
-	{
-		screen_1_page_2[index] = (CHECKERBOARD_TILES + (index % 2) + (((index / 32) % 2) * 2)) | WS_SCREEN_ATTR_PALETTE(CHECKERBOARD_PALETTE);
-	}
+	for (int y = 0; y < WS_SCREEN_HEIGHT_TILES; y++)
+		for (int x = 0; x < WS_SCREEN_WIDTH_TILES; x++)
+		{
+			screen_1_page_2.row[y].cell[x] = (CHECKERBOARD_TILES + (x % 2) + ((y % 2) * 2)) | WS_SCREEN_ATTR_PALETTE(CHECKERBOARD_PALETTE);
+		}
 }
 
 // draw the green baize background onto screen 1
 void draw_baize()
 {
-    uint16_t index;
+	int index = 0;
 
-	for (index = 0; index < WS_SCREEN_WIDTH_TILES * WS_SCREEN_HEIGHT_TILES; index++)
-	{
-		screen_1[index] = (BAIZE_TILES + (index % 3) + (((index / 32) % 3) * 3)) | WS_SCREEN_ATTR_PALETTE(BAIZE_PALETTE);
-	}
+	for (int y = 0; y < WS_SCREEN_HEIGHT_TILES; y++)
+		for (int x = 0; x < WS_SCREEN_WIDTH_TILES; x++, index++)
+		{
+			screen_1.row[y].cell[x] = (BAIZE_TILES + (index % 3) + (((index / 32) % 3) * 3)) | WS_SCREEN_ATTR_PALETTE(BAIZE_PALETTE);
+		}
 }
 
 // draw dotted lines for empty freecellls
@@ -196,7 +196,6 @@ void draw_empty_freecells()
 void draw_empty_foundations()
 {
     uint8_t i, tx, ty;
-    uint16_t index;
 
 	// draw foundations
 	for (i = 0; i < 4; i++)
@@ -207,14 +206,13 @@ void draw_empty_foundations()
 		draw_empty_card(tx, ty);
 
 		// draw suit icon for each foundations
-		index = (tx + 1) + ((ty + 1) << 5);
-		screen_2[index] = (0x58 + i) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+		screen_2.row[ty + 1].cell[tx + 1] = (0x58 + i) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 	}
 }
 
 void draw_title_screen()
 {
-    ws_screen_put_tiles(screen_2, gfx_title_screen_map, 0, 0, 28, 18);
+    ws_screen_put_tiles(&screen_2, gfx_title_screen_map, 0, 0, 28, 18);
 }
 
 // draw menu into an offscreen page which will be swapped out for screen_2
@@ -224,7 +222,7 @@ void draw_menu()
 
 	for (i = 0; i < WS_DISPLAY_WIDTH_TILES * WS_DISPLAY_HEIGHT_TILES; i++)
 	{
-        screen_2_page_2[i] = menu_tilemap[i] | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+        screen_2_page_2.cell[i] = menu_tilemap[i] | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
     }
 }
 
@@ -241,9 +239,9 @@ void set_up_you_win_sprites()
     // 8x4 tiles image
     for (i = 0; i < 32; i++)
     {
-        sprites[i].attr = (YOU_WIN_TILES + i) | WS_SPRITE_ATTR_PALETTE(CARDS_PALETTE) | WS_SPRITE_ATTR_PRIORITY;
-        sprites[i].x = (10 + (i % 8)) << 3;
-        sprites[i].y = (7 + (i / 8)) << 3;
+        sprites.entry[i].attr = (YOU_WIN_TILES + i) | WS_SPRITE_ATTR_PALETTE(CARDS_PALETTE) | WS_SPRITE_ATTR_PRIORITY;
+        sprites.entry[i].x = (10 + (i % 8)) << 3;
+        sprites.entry[i].y = (7 + (i / 8)) << 3;
     }
 }
 
@@ -279,18 +277,18 @@ void draw_cursor()
     outportb(WS_SPR_COUNT_PORT, 2 + card_in_hand_tiles_count);
 
     // cursor position
-    sprites[0].x = drawn_cursor_x + 20;
-    sprites[0].y = drawn_cursor_y + 8 - camera_y;
+    sprites.entry[0].x = drawn_cursor_x + 20;
+    sprites.entry[0].y = drawn_cursor_y + 8 - camera_y;
 
-    sprites[1].x = sprites[0].x;
-    sprites[1].y = sprites[0].y + 8;
+    sprites.entry[1].x = sprites.entry[0].x;
+    sprites.entry[1].y = sprites.entry[0].y + 8;
 
     // set up sprites for card which is being moved
     for (i = 0; i < card_in_hand_tiles_count; i++)
     {
-        sprites[i + 2] = card_in_hand_tiles[i];
-        sprites[i + 2].x = (drawn_cursor_x + ((i % 3) << 3)) + 4;
-        sprites[i + 2].y = (drawn_cursor_y + ((i / 3) << 3)) + 6 - camera_y;
+        sprites.entry[i + 2] = card_in_hand_tiles[i];
+        sprites.entry[i + 2].x = (drawn_cursor_x + ((i % 3) << 3)) + 4;
+        sprites.entry[i + 2].y = (drawn_cursor_y + ((i / 3) << 3)) + 6 - camera_y;
     }
 }
 
@@ -306,15 +304,15 @@ void copy_card_tiles_to_sprites(uint8_t x, uint8_t y)
 
 	for (i = 0; i < 4; i++)
 	{
-		card_in_hand_tiles[dest_offset].attr = screen_2[source_offset] | WS_SPRITE_ATTR_PRIORITY;
+		card_in_hand_tiles[dest_offset].attr = screen_2.cell[source_offset] | WS_SPRITE_ATTR_PRIORITY;
 		dest_offset++;
 		source_offset++;
 
-		card_in_hand_tiles[dest_offset].attr = screen_2[source_offset] | WS_SPRITE_ATTR_PRIORITY;
+		card_in_hand_tiles[dest_offset].attr = screen_2.cell[source_offset] | WS_SPRITE_ATTR_PRIORITY;
 		dest_offset++;
 		source_offset++;
 
-		card_in_hand_tiles[dest_offset].attr = screen_2[source_offset] | WS_SPRITE_ATTR_PRIORITY;
+		card_in_hand_tiles[dest_offset].attr = screen_2.cell[source_offset] | WS_SPRITE_ATTR_PRIORITY;
 		dest_offset++;
 		source_offset++;
 
@@ -326,15 +324,13 @@ void copy_card_tiles_to_sprites(uint8_t x, uint8_t y)
 void clear_card_tiles(uint8_t x, uint8_t y)
 {
 	uint8_t i;
-	uint16_t offset = x + (y << 5);
 
 	// body of card
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++, y++)
 	{
-		screen_2[offset] = WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
-		screen_2[offset + 1] = WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
-		screen_2[offset + 2] = WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
-		offset += WS_SCREEN_WIDTH_TILES;
+		screen_2.row[y].cell[x] = WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+		screen_2.row[y].cell[x + 1] = WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+		screen_2.row[y].cell[x + 2] = WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 	}
 }
 
@@ -346,14 +342,12 @@ void draw_card_tiles(uint8_t card, uint8_t x, uint8_t y, uint8_t full_card)
 	uint8_t suit = (card >> 4);
 	uint16_t card_body = 0x10;
 
-	uint16_t offset = x + (y * WS_SCREEN_WIDTH_TILES);
-
 	// top row
-	screen_2[offset] = (0x54) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
-    screen_2[offset + 1] = (0x50 + suit) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
-	screen_2[offset + 2] = (0x60 + value) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+	screen_2.row[y].cell[x] = (0x54) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+	screen_2.row[y].cell[x + 1] = (0x50 + suit) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+	screen_2.row[y].cell[x + 2] = (0x60 + value) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 
-	offset += WS_SCREEN_WIDTH_TILES;
+	y++;
 
     // whether to draw the full card or just the top row
 	if (full_card == 1)
@@ -373,22 +367,22 @@ void draw_card_tiles(uint8_t card, uint8_t x, uint8_t y, uint8_t full_card)
 		// body of card
 		for (i = 0; i < 2; i++)
 		{
-			screen_2[offset] = card_body | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+			screen_2.row[y].cell[x] = card_body | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 			card_body++;
 
-			screen_2[offset + 1] = card_body | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+			screen_2.row[y].cell[x + 1] = card_body | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 			card_body++;
 
-			screen_2[offset + 2] = card_body | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+			screen_2.row[y].cell[x + 2] = card_body | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 			card_body++;
 
-			offset += WS_SCREEN_WIDTH_TILES;
+			y++;
 		}
 
 		// bottom row
-		screen_2[offset] = (0x70 + value) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE) | WS_SCREEN_ATTR_FLIP_H | WS_SCREEN_ATTR_FLIP_V;
-		screen_2[offset + 1] = (0x50 + suit) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE) | WS_SCREEN_ATTR_FLIP_H | WS_SCREEN_ATTR_FLIP_V;
-		screen_2[offset + 2] = (0x57) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+		screen_2.row[y].cell[x] = (0x70 + value) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE) | WS_SCREEN_ATTR_FLIP_H | WS_SCREEN_ATTR_FLIP_V;
+		screen_2.row[y].cell[x + 1] = (0x50 + suit) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE) | WS_SCREEN_ATTR_FLIP_H | WS_SCREEN_ATTR_FLIP_V;
+		screen_2.row[y].cell[x + 2] = (0x57) | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 	}
 
 }
@@ -398,19 +392,18 @@ void draw_empty_card(uint8_t x, uint8_t y)
 {
 	uint8_t i = 0;
 	uint8_t tile = 0x80;
-	uint16_t offset = x + (y * WS_SCREEN_WIDTH_TILES);
 
 	for (i = 0; i < 4; i++)
 	{
-		screen_2[offset] = tile | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+		screen_2.row[y].cell[x] = tile | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 		tile++;
 
-		screen_2[offset + 1] = tile | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+		screen_2.row[y].cell[x + 1] = tile | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 		tile++;
 
-		screen_2[offset + 2] = tile | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
+		screen_2.row[y].cell[x + 2] = tile | WS_SCREEN_ATTR_PALETTE(CARDS_PALETTE);
 		tile++;
 
-		offset += WS_SCREEN_WIDTH_TILES;
+		y++;
 	}
 }
